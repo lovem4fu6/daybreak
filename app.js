@@ -93,6 +93,44 @@ function penalties() {
 const $app = document.getElementById('app');
 const WD = ['日', '一', '二', '三', '四', '五', '六'];
 
+/* 月曆：每天三個點，依序是禁炸令、英文、訓練 */
+let viewMonth = todayKey().slice(0, 7);
+function calendar(today) {
+  const minMonth = state.start.slice(0, 7), maxMonth = today.slice(0, 7);
+  if (viewMonth < minMonth) viewMonth = minMonth;
+  if (viewMonth > maxMonth) viewMonth = maxMonth;
+  const [y, m] = viewMonth.split('-').map(Number);
+  const count = new Date(y, m, 0).getDate();
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7; // 週一開頭，和每週訓練的算法一致
+  const sum = { fried: 0, english: 0, train: 0 };
+  let cells = '<div class="day blank"></div>'.repeat(lead);
+  for (let d = 1; d <= count; d++) {
+    const k = `${viewMonth}-${pad(d)}`, rec = state.days[k] || {};
+    const out = k < state.start || k > today;
+    if (rec.fried === 'kept') sum.fried++;
+    if (rec.english) sum.english++;
+    if (rec.train) sum.train++;
+    cells += `<div class="day ${k === today ? 'today' : ''} ${out ? 'out' : ''}"><span>${d}</span>
+      <div class="dots"><i class="f ${rec.fried || ''}"></i><i class="e ${rec.english ? 'on' : ''}"></i><i class="t ${rec.train ? 'on' : ''}"></i></div></div>`;
+  }
+  return `
+  <h2>紀錄</h2>
+  <section class="card cal">
+    <div class="cal-head">
+      <button class="nav" data-act="month" data-d="-1" aria-label="上個月" ${viewMonth <= minMonth ? 'disabled' : ''}>‹</button>
+      <h3>${y} 年 ${m} 月</h3>
+      <button class="nav" data-act="month" data-d="1" aria-label="下個月" ${viewMonth >= maxMonth ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="grid head">${['一', '二', '三', '四', '五', '六', '日'].map(w => `<div>${w}</div>`).join('')}</div>
+    <div class="grid">${cells}</div>
+    <p class="cal-sum">本月　無炸 ${sum.fried} 天　·　英文 ${sum.english} 天　·　訓練 ${sum.train} 次</p>
+    <div class="legend">
+      <span><i class="f kept"></i>守住</span><span><i class="f broken"></i>破戒</span><span><i class="f pass"></i>解禁券</span>
+      <span><i class="e on"></i>英文</span><span><i class="t on"></i>訓練</span>
+    </div>
+  </section>`;
+}
+
 function render() {
   const r = derive(), today = todayKey(), yesterday = shift(today, -1);
   const rec = state.days[today] || {}, yrec = state.days[yesterday] || {};
@@ -172,6 +210,8 @@ function render() {
     </section>`;
   }).join('') : ''}
 
+  ${calendar(today)}
+
   <h2>稱號</h2>
   <ul class="titles">
     ${TITLES.map(t => `<li class="${r.titles.includes(t.name) ? 'got' : ''}"><b>${t.name}</b><span>${t.desc}</span></li>`).join('')}
@@ -215,6 +255,11 @@ $app.addEventListener('click', e => {
   } else if (a === 'pen') {
     const id = b.dataset.id;
     act(() => { const rec = dayRec(today); rec.pen = rec.pen || {}; rec.pen[id] = !rec.pen[id]; });
+  } else if (a === 'month') {
+    const [y, m] = viewMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + Number(b.dataset.d), 1);
+    viewMonth = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    render();
   } else if (a === 'sound') {
     state.sound = !state.sound; save(); render(); if (state.sound) ding();
   } else if (a === 'backup') openBackup();
