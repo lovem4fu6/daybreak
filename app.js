@@ -235,16 +235,18 @@ function ding(big) {
   if (!state.sound) return;
   try {
     audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume();
     const notes = big ? [523, 659, 784, 1047] : [784, 1175];
-    notes.forEach((f, i) => {
-      const t = audio.currentTime + i * 0.11, o = audio.createOscillator(), g = audio.createGain();
+    const play = () => notes.forEach((f, i) => {
+      const t = audio.currentTime + 0.03 + i * 0.11, o = audio.createOscillator(), g = audio.createGain();
       o.type = 'sine'; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-      o.connect(g).connect(audio.destination); o.start(t); o.stop(t + 0.55);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + 0.55);
     });
+    // iPhone 上音訊常處於暫停或被中斷的狀態，要等它真正恢復後再排音符
+    if (audio.state === 'running') play();
+    else audio.resume().then(play).catch(() => {});
   } catch (e) { /* 沒有音效也不影響使用 */ }
 }
 
